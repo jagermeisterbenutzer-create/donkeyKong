@@ -8,6 +8,7 @@ type GameAction =
   | { type: "pause-run" }
   | { type: "resume-run" }
   | { type: "add-score"; points: number }
+  | { type: "reset-level" }
   | { type: "complete-level" }
   | { type: "lose-life" };
 
@@ -56,8 +57,8 @@ function gameReducer(state: GameSessionState, action: GameAction): GameSessionSt
       const levels = state.levels.map((level, index) =>
         index === state.currentLevelIndex ? { ...level, completed: true } : level,
       );
-      const nextLevelIndex = Math.min(state.currentLevelIndex + 1, levels.length - 1);
-      const phase = nextLevelIndex === state.currentLevelIndex ? "level-complete" : "ready";
+      const nextLevelIndex = state.currentLevelIndex + 1;
+      const phase = nextLevelIndex >= levels.length ? "level-complete" : "ready";
 
       return {
         ...state,
@@ -66,6 +67,14 @@ function gameReducer(state: GameSessionState, action: GameAction): GameSessionSt
         levels,
       };
     }
+    case "reset-level":
+      if (state.phase === "game-over") {
+        return state;
+      }
+      return {
+        ...state,
+        phase: "ready",
+      };
     case "lose-life":
       return {
         ...state,

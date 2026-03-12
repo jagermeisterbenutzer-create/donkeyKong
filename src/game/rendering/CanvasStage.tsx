@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { createGameLoop } from "../core/gameLoop";
 import { GameEngine, GameInput } from "../engine/gameEngine";
+import { playArcadeEffect } from "../audio/arcadeAudio";
 import { useGameStore } from "../../state/gameStore";
 
 const STAGE_WIDTH = 960;
@@ -34,6 +35,7 @@ export function CanvasStage() {
       const result = engine.update(deltaMs, inputRef.current);
 
       if (result?.lifeLost) {
+        playArcadeEffect("lifeLost");
         dispatch({ type: "lose-life" });
         engine.handleLifeLoss();
       }
@@ -41,7 +43,9 @@ export function CanvasStage() {
       if (result?.levelComplete) {
         dispatch({ type: "add-score", points: result.points ?? 0 });
         dispatch({ type: "complete-level" });
+        playArcadeEffect("levelComplete");
       } else if (result?.points) {
+        playArcadeEffect("barrel");
         dispatch({ type: "add-score", points: result.points });
       }
 

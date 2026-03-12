@@ -27,7 +27,7 @@ src/
     systems/
       scoring.ts           # Score calculation helpers
   state/
-    gameStore.ts           # Reducer, actions, selectors
+    gameStore.tsx          # Reducer, actions, selectors
   types/
     game.ts                # Shared game and level types
 ```

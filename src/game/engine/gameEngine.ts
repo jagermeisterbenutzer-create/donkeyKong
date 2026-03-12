@@ -1,4 +1,11 @@
 import { levelManifest } from "../levels/levelManifest";
+import {
+  createBackgroundImage,
+  createDonkeySpriteSheet,
+  DONKEY_FRAME_COUNT,
+  DONKEY_FRAME_HEIGHT,
+  DONKEY_FRAME_WIDTH,
+} from "../assets/artAssets";
 
 type Rect = {
   x: number;
@@ -70,9 +77,15 @@ export class GameEngine {
   private spawnCooldown = 0;
   private levelFinished = false;
   private timeOutTriggered = false;
+  private donkeyFrameIndex = 0;
+  private donkeyAnimationTimer = 0;
+  private backgroundImage: HTMLImageElement;
+  private donkeySpriteSheet: HTMLImageElement;
 
   constructor(private width: number, private height: number) {
     this.player = this.createPlayer();
+    this.backgroundImage = createBackgroundImage();
+    this.donkeySpriteSheet = createDonkeySpriteSheet();
     this.resetLevel(0);
   }
 
@@ -86,6 +99,7 @@ export class GameEngine {
     this.player = this.createPlayer();
     this.enemies = this.createEnemies();
     this.barrels = [];
+    this.resetDonkeyAnimation();
   }
 
   update(deltaMs: number, input: GameInput): GameUpdateResult | null {
@@ -99,6 +113,7 @@ export class GameEngine {
     this.movePlayer(deltaSeconds, input);
     this.moveEnemies(deltaSeconds);
     this.moveBarrels(deltaSeconds);
+    this.updateDonkeyAnimation(deltaSeconds);
 
     this.spawnCooldown -= deltaMs;
     if (this.spawnCooldown <= 0) {
@@ -145,17 +160,24 @@ export class GameEngine {
     this.timeRemaining = this.levelDuration;
     this.timeOutTriggered = false;
     this.levelFinished = false;
+    this.resetDonkeyAnimation();
   }
 
   render(context: CanvasRenderingContext2D) {
     context.clearRect(0, 0, this.width, this.height);
 
+    context.save();
+    if (this.backgroundImage.complete) {
+      context.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
+      context.globalAlpha = 0.35;
+    }
     const gradient = context.createLinearGradient(0, 0, 0, this.height);
     gradient.addColorStop(0, "#0b1420");
     gradient.addColorStop(0.45, "#15263f");
     gradient.addColorStop(1, "#080c16");
     context.fillStyle = gradient;
     context.fillRect(0, 0, this.width, this.height);
+    context.restore();
 
     context.fillStyle = "rgba(255,255,255,0.05)";
     context.beginPath();
@@ -194,15 +216,35 @@ export class GameEngine {
       context.fillRect(enemy.x + 6, enemy.y + 10, enemy.width - 12, enemy.height - 12);
     }
 
-    context.fillStyle = "#fefae0";
-    context.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
-    context.strokeStyle = "#f07167";
-    context.lineWidth = 3;
-    context.strokeRect(this.player.x, this.player.y, this.player.width, this.player.height);
-
-    context.fillStyle = "#0b1320";
-    context.fillRect(this.player.x + 4, this.player.y + 18, this.player.width - 8, 4);
-    context.fillRect(this.player.x + 4, this.player.y + 28, this.player.width - 8, 4);
+    const facingLeft = this.player.vx < 0;
+    context.save();
+    context.translate(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2);
+    context.scale(facingLeft ? -1 : 1, 1);
+    const drawX = -this.player.width / 2;
+    const drawY = -this.player.height / 2;
+    if (this.donkeySpriteSheet.complete) {
+      context.drawImage(
+        this.donkeySpriteSheet,
+        this.donkeyFrameIndex * DONKEY_FRAME_WIDTH,
+        0,
+        DONKEY_FRAME_WIDTH,
+        DONKEY_FRAME_HEIGHT,
+        drawX,
+        drawY,
+        this.player.width,
+        this.player.height
+      );
+    } else {
+      context.fillStyle = "#fefae0";
+      context.fillRect(drawX, drawY, this.player.width, this.player.height);
+      context.strokeStyle = "#f07167";
+      context.lineWidth = 3;
+      context.strokeRect(drawX, drawY, this.player.width, this.player.height);
+      context.fillStyle = "#0b1320";
+      context.fillRect(drawX + 4, drawY + 18, this.player.width - 8, 4);
+      context.fillRect(drawX + 4, drawY + 28, this.player.width - 8, 4);
+    }
+    context.restore();
 
     context.fillStyle = "#f1faee";
     context.textBaseline = "top";
@@ -213,6 +255,24 @@ export class GameEngine {
     context.font = '600 22px "Press Start 2P", sans-serif';
     context.fillText(`Level ${this.levelIndex + 1}`, this.width - 24, 22);
     context.textAlign = "left";
+  }
+
+  private updateDonkeyAnimation(deltaSeconds: number) {
+    const frameDuration = 0.12;
+    if (this.player.vx !== 0) {
+      this.donkeyAnimationTimer += deltaSeconds;
+      if (this.donkeyAnimationTimer >= frameDuration) {
+        this.donkeyAnimationTimer -= frameDuration;
+        this.donkeyFrameIndex = (this.donkeyFrameIndex + 1) % DONKEY_FRAME_COUNT;
+      }
+    } else {
+      this.resetDonkeyAnimation();
+    }
+  }
+
+  private resetDonkeyAnimation() {
+    this.donkeyFrameIndex = 0;
+    this.donkeyAnimationTimer = 0;
   }
 
   private createPlayer(): Player {

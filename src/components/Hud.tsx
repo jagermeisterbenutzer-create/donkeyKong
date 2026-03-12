@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import type { GamePhase } from "../types/game";
+import { difficultyPresets } from "../game/config/difficultyPresets";
+import type { DifficultyName, GamePhase } from "../types/game";
 
 interface HudProps {
   score: number;
@@ -7,6 +8,7 @@ interface HudProps {
   lives: number;
   levelName: string;
   phase: GamePhase;
+  difficulty: DifficultyName;
   bonusThreshold?: number;
 }
 
@@ -88,9 +90,10 @@ const PROGRESS_BAR: CSSProperties = {
   background: "linear-gradient(90deg, #9b5de5, #f15bb5)",
 };
 
-export function Hud({ score, totalScore, lives, levelName, phase, bonusThreshold }: HudProps) {
+export function Hud({ score, totalScore, lives, levelName, phase, difficulty, bonusThreshold }: HudProps) {
   const phaseLabel = PHASE_LABELS[phase];
   const bonusPercent = bonusThreshold ? Math.min(100, (score / bonusThreshold) * 100) : 0;
+  const difficultyPreset = difficultyPresets[difficulty];
 
   return (
     <header style={HUD_STYLE} aria-label="Game HUD">
@@ -111,6 +114,10 @@ export function Hud({ score, totalScore, lives, levelName, phase, bonusThreshold
           <span>Lives</span>
           <strong style={VALUE_STYLE}>{lives}</strong>
         </div>
+        <div style={BLOCK_STYLE}>
+          <span>Difficulty</span>
+          <strong style={VALUE_STYLE}>{difficultyPreset.label}</strong>
+        </div>
       </div>
 
       <div style={ROW_STYLE}>
@@ -127,6 +134,9 @@ export function Hud({ score, totalScore, lives, levelName, phase, bonusThreshold
               <div style={{ ...PROGRESS_BAR, width: `${bonusPercent}%` }} />
             </div>
           )}
+          <div style={{ marginTop: "6px", fontSize: "0.75rem", color: "#fbf8f4" }}>
+            TARGET: 60 FPS DESKTOP / TOUCH CONTROLS MOBILE
+          </div>
         </div>
       </div>
     </header>

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import type { CSSProperties } from "react";
 
+import { trackCheckpoint } from "../game/analytics/gameAnalytics";
 import type { GamePhase } from "../types/game";
 import { useGameStore } from "../state/gameStore";
+import { difficultyOrder, difficultyPresets } from "../game/config/difficultyPresets";
 import { playArcadeEffect, startArcadeMusic, stopArcadeMusic } from "../game/audio/arcadeAudio";
 
 const OVERLAY_STYLE: CSSProperties = {
@@ -19,7 +21,7 @@ const OVERLAY_STYLE: CSSProperties = {
 };
 
 const CARD_STYLE: CSSProperties = {
-  width: "min(430px, 100%)",
+  width: "min(520px, 100%)",
   borderRadius: 22,
   border: "1px solid rgba(255,255,255,0.4)",
   background: "rgba(5, 12, 28, 0.95)",
@@ -83,6 +85,28 @@ const FOOTER_STYLE: CSSProperties = {
   textTransform: "uppercase",
 };
 
+const SECTION_LABEL_STYLE: CSSProperties = {
+  marginBottom: "10px",
+  fontSize: "0.74rem",
+  color: "rgba(255,255,255,0.72)",
+  textTransform: "uppercase",
+  letterSpacing: "0.16em",
+};
+
+const DIFFICULTY_GRID_STYLE: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+  gap: "10px",
+  marginBottom: "18px",
+};
+
+const META_GRID_STYLE: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "10px",
+  marginBottom: "18px",
+};
+
 const PHASE_HEADLINE: Record<GamePhase, string> = {
   boot: "Powering up",
   ready: "Next level queued",
@@ -104,11 +128,12 @@ const PHASE_DESCRIPTION: Record<GamePhase, string> = {
 const INSTRUCTIONS = [
   "Arrow keys or A/D for movement",
   "Space / W or Arrow Up to jump",
-  "Barrels give bonus points when knocked down",
+  "Press P or Esc to pause instantly",
 ];
 
 export function GameMenu() {
   const { state, dispatch } = useGameStore();
+  const selectedDifficulty = difficultyPresets[state.difficulty];
 
   useEffect(() => {
     if (state.phase === "running") {
@@ -140,11 +165,31 @@ export function GameMenu() {
     if (state.phase === "paused") {
       playArcadeEffect("resume");
       dispatch({ type: "resume-run" });
+    } else if (state.phase === "game-over") {
+      playArcadeEffect("start");
+      dispatch({ type: "restart-run", source: "game-over" });
     } else {
       playArcadeEffect("start");
-      dispatch({ type: "start-run" });
+      dispatch({ type: "start-run", source: state.phase });
     }
+
+    trackCheckpoint("menu_primary_action", {
+      phase: state.phase,
+      difficulty: state.difficulty,
+      sessionId: state.sessionId,
+    });
   };
+
+  const handleDifficultyChange = (difficulty: (typeof difficultyOrder)[number]) => {
+    trackCheckpoint("menu_difficulty_change", {
+      phase: state.phase,
+      difficulty,
+      sessionId: state.sessionId,
+    });
+    dispatch({ type: "set-difficulty", difficulty });
+  };
+
+  const isDifficultyLocked = state.phase !== "boot";
 
   const primaryLabel =
     state.phase === "paused"
@@ -153,7 +198,14 @@ export function GameMenu() {
       ? "Next run"
       : state.phase === "game-over"
       ? "Restart"
+      : state.phase === "boot"
+      ? "Start game"
       : "Start run";
+
+  const footerLabel =
+    state.phase === "boot"
+      ? "Keyboard and touch layouts are tuned for desktop, tablet, and mobile screens."
+      : "Pick up the next ladder run with the same difficulty profile and live telemetry hooks.";
 
   return (
     <>
@@ -176,6 +228,57 @@ export function GameMenu() {
           <div style={HEADER_STYLE}>{PHASE_HEADLINE[state.phase]}</div>
           <div style={TITLE_STYLE}>{state.phase === "boot" ? "Donkey Kong 3.2" : "Arcade Ladder"}</div>
           <p style={DESCRIPTION_STYLE}>{PHASE_DESCRIPTION[state.phase]}</p>
+          <div style={SECTION_LABEL_STYLE}>Difficulty</div>
+          <div style={DIFFICULTY_GRID_STYLE}>
+            {difficultyOrder.map((difficulty) => {
+              const preset = difficultyPresets[difficulty];
+              const selected = difficulty === state.difficulty;
+
+              return (
+                <button
+                  key={difficulty}
+                  type="button"
+                  onClick={() => handleDifficultyChange(difficulty)}
+                  style={{
+                    borderRadius: 14,
+                    border: selected ? "1px solid #ffd166" : "1px solid rgba(255,255,255,0.16)",
+                    padding: "12px",
+                    background: selected ? "rgba(255,209,102,0.14)" : "rgba(255,255,255,0.04)",
+                    color: "#fefefe",
+                    textAlign: "left",
+                    cursor: isDifficultyLocked ? "not-allowed" : "pointer",
+                    opacity: isDifficultyLocked && !selected ? 0.58 : 1,
+                  }}
+                  aria-pressed={selected}
+                  disabled={isDifficultyLocked}
+                >
+                  <div style={{ fontSize: "0.92rem", fontWeight: 700, marginBottom: "4px" }}>{preset.label}</div>
+                  <div style={{ fontSize: "0.68rem", lineHeight: 1.5, color: "rgba(255,255,255,0.74)" }}>
+                    {preset.description}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={META_GRID_STYLE}>
+            <div style={{ padding: "10px 12px", borderRadius: 14, background: "rgba(255,255,255,0.05)" }}>
+              <div style={SECTION_LABEL_STYLE}>Lives</div>
+              <div style={{ fontSize: "1.2rem", color: "#ffd166" }}>{selectedDifficulty.startingLives}</div>
+            </div>
+            <div style={{ padding: "10px 12px", borderRadius: 14, background: "rgba(255,255,255,0.05)" }}>
+              <div style={SECTION_LABEL_STYLE}>Score Rate</div>
+              <div style={{ fontSize: "1.2rem", color: "#ffd166" }}>{selectedDifficulty.scoreMultiplier.toFixed(1)}x</div>
+            </div>
+            <div style={{ padding: "10px 12px", borderRadius: 14, background: "rgba(255,255,255,0.05)" }}>
+              <div style={SECTION_LABEL_STYLE}>Session</div>
+              <div style={{ fontSize: "1.2rem", color: "#ffd166" }}>#{state.sessionId}</div>
+            </div>
+          </div>
+          {isDifficultyLocked ? (
+            <div style={{ marginBottom: "16px", fontSize: "0.68rem", color: "rgba(255,255,255,0.62)" }}>
+              Difficulty locks after the run begins. Use Reset Lobby to switch profiles.
+            </div>
+          ) : null}
           <ul style={INSTRUCTION_STYLE}>
             {INSTRUCTIONS.map((item) => (
               <li key={item} style={{ marginBottom: "6px" }}>
@@ -187,8 +290,27 @@ export function GameMenu() {
             <button type="button" style={PRIMARY_BUTTON_STYLE} onClick={handlePrimary}>
               {primaryLabel}
             </button>
+            {state.phase !== "running" && state.phase !== "boot" ? (
+              <button
+                type="button"
+                style={{
+                  ...PRIMARY_BUTTON_STYLE,
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18))",
+                }}
+                onClick={() => {
+                  trackCheckpoint("menu_reset_lobby", {
+                    phase: state.phase,
+                    difficulty: state.difficulty,
+                    sessionId: state.sessionId,
+                  });
+                  dispatch({ type: "reset-session" });
+                }}
+              >
+                Reset Lobby
+              </button>
+            ) : null}
           </div>
-          <div style={FOOTER_STYLE}>Press start to keep the spray of barrels alive.</div>
+          <div style={FOOTER_STYLE}>{footerLabel}</div>
         </div>
       </div>
     </>

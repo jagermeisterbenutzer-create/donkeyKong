@@ -1,5 +1,20 @@
 export type GamePhase = "boot" | "ready" | "running" | "paused" | "level-complete" | "game-over";
 
+export type DifficultyName = "easy" | "normal" | "hard";
+
+export interface DifficultyDefinition {
+  id: DifficultyName;
+  label: string;
+  description: string;
+  startingLives: number;
+  playerSpeedMultiplier: number;
+  jumpMultiplier: number;
+  enemySpeedMultiplier: number;
+  barrelSpeedMultiplier: number;
+  spawnRateMultiplier: number;
+  scoreMultiplier: number;
+}
+
 export interface LevelDefinition {
   id: string;
   name: string;
@@ -19,4 +34,6 @@ export interface GameSessionState {
   totalScore: number;
   lives: number;
   levels: LevelProgress[];
+  difficulty: DifficultyName;
+  sessionId: number;
 }

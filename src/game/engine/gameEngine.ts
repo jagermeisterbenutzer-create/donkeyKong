@@ -1,4 +1,6 @@
+import { difficultyPresets } from "../config/difficultyPresets";
 import { levelManifest } from "../levels/levelManifest";
+import { getAwardedScore } from "../systems/scoring";
 import {
   createBackgroundImage,
   createDonkeySpriteSheet,
@@ -6,6 +8,7 @@ import {
   DONKEY_FRAME_HEIGHT,
   DONKEY_FRAME_WIDTH,
 } from "../assets/artAssets";
+import type { DifficultyName } from "../../types/game";
 
 type Rect = {
   x: number;
@@ -77,6 +80,7 @@ export class GameEngine {
   private spawnCooldown = 0;
   private levelFinished = false;
   private timeOutTriggered = false;
+  private difficulty: DifficultyName = "normal";
   private donkeyFrameIndex = 0;
   private donkeyAnimationTimer = 0;
   private backgroundImage: HTMLImageElement;
@@ -89,7 +93,8 @@ export class GameEngine {
     this.resetLevel(0);
   }
 
-  resetLevel(levelIndex: number) {
+  resetLevel(levelIndex: number, difficulty: DifficultyName = this.difficulty) {
+    this.difficulty = difficulty;
     this.levelIndex = Math.max(0, Math.min(levelIndex, levelManifest.length - 1));
     this.levelDuration = levelManifest[this.levelIndex]?.timeLimitSeconds ?? 90;
     this.timeRemaining = this.levelDuration;
@@ -138,7 +143,7 @@ export class GameEngine {
 
     if (this.reachedGoal()) {
       this.levelFinished = true;
-      const reward = LEVEL_COMPLETE_POINTS + Math.round(this.levelIndex * 60);
+      const reward = getAwardedScore(LEVEL_COMPLETE_POINTS + Math.round(this.levelIndex * 60), this.difficulty);
       return {
         levelComplete: true,
         points: reward,
@@ -291,28 +296,32 @@ export class GameEngine {
   private createEnemies(): Enemy[] {
     const platform = PLATFORMS[2];
     const count = Math.min(3, 1 + Math.floor((this.levelIndex + 1) / 2));
+    const speedMultiplier = difficultyPresets[this.difficulty].enemySpeedMultiplier;
     return Array.from({ length: count }, (_, index) => ({
       x: platform.x + 60 + index * 90,
       y: platform.y - ENEMY_SIZE - 4,
       width: ENEMY_SIZE,
       height: ENEMY_SIZE,
-      vx: (Math.random() > 0.5 ? 1 : -1) * (90 + this.levelIndex * 20),
+      vx: (Math.random() > 0.5 ? 1 : -1) * (90 + this.levelIndex * 20) * speedMultiplier,
     }));
   }
 
   private movePlayer(deltaSeconds: number, input: GameInput) {
     const player = this.player;
+    const difficulty = difficultyPresets[this.difficulty];
+    const playerSpeed = PLAYER_SPEED * difficulty.playerSpeedMultiplier;
+    const jumpSpeed = JUMP_SPEED * difficulty.jumpMultiplier;
 
     if (input.left && !input.right) {
-      player.vx = -PLAYER_SPEED;
+      player.vx = -playerSpeed;
     } else if (input.right && !input.left) {
-      player.vx = PLAYER_SPEED;
+      player.vx = playerSpeed;
     } else {
       player.vx = 0;
     }
 
     if (input.jump && player.onGround) {
-      player.vy = JUMP_SPEED;
+      player.vy = jumpSpeed;
       player.onGround = false;
     }
 
@@ -378,15 +387,16 @@ export class GameEngine {
   }
 
   private spawnBarrel() {
+    const difficulty = difficultyPresets[this.difficulty];
     const direction = Math.random() > 0.5 ? 1 : -1;
-    const speed = BARREL_BASE_SPEED + this.levelIndex * 14 + Math.random() * 40;
+    const speed = (BARREL_BASE_SPEED + this.levelIndex * 14 + Math.random() * 40) * difficulty.barrelSpeedMultiplier;
     const barrel: Barrel = {
       x: this.width / 2 + (direction === 1 ? -120 : 120),
       y: 60,
       width: BARREL_SIZE,
       height: BARREL_SIZE,
       vx: direction * speed,
-      vy: BARREL_VERTICAL_SPEED + this.levelIndex * 15,
+      vy: (BARREL_VERTICAL_SPEED + this.levelIndex * 15) * difficulty.barrelSpeedMultiplier,
     };
     this.barrels.push(barrel);
   }
@@ -395,7 +405,7 @@ export class GameEngine {
     let points = 0;
     this.barrels = this.barrels.filter((barrel) => {
       if (barrel.y > this.height) {
-        points += BARREL_POINTS;
+        points += getAwardedScore(BARREL_POINTS, this.difficulty);
         return false;
       }
       return true;
@@ -430,7 +440,8 @@ export class GameEngine {
   }
 
   private getBarrelSpawnInterval(): number {
+    const difficulty = difficultyPresets[this.difficulty];
     const base = 1400 - this.levelIndex * 120;
-    return Math.max(550, base + Math.random() * 400 - 200);
+    return Math.max(550, (base + Math.random() * 400 - 200) * difficulty.spawnRateMultiplier);
   }
 }

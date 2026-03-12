@@ -35,6 +35,7 @@ src/
 ## State management
 
 - Use a reducer-backed store for level progression, score, lives, and run status.
+- Keep difficulty selection in session state so menus, HUD, analytics, and engine tuning stay aligned.
 - Expose the store through React context so UI components can read selectors without pushing gameplay state into props.
 - Keep frame-by-frame transient data out of React state; the Canvas loop reads the latest store snapshot and mutates only per-frame engine objects.
 - Track level configuration separately from run state:
@@ -50,3 +51,9 @@ This avoids unnecessary re-renders and keeps scoring and level transitions predi
 - Limit React re-renders to UI events and state transitions; gameplay frames should render on Canvas only.
 - Reuse Canvas draw buffers and level metadata objects to minimize garbage collection churn.
 - Load level data up front and keep individual level definitions lightweight enough to switch levels without visible hitching.
+
+## Targeted scope
+
+- Primary browsers: current Chrome, Edge, Firefox, and Safari releases.
+- Primary devices: modern desktop/laptop screens plus recent iOS and Android touch devices in portrait and landscape.
+- Instrument gameplay with `window` `CustomEvent` telemetry and optional `dataLayer` pushes so QA can verify starts, resets, difficulty changes, completions, and sampled frame metrics.

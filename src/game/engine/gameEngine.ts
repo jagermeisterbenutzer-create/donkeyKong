@@ -98,7 +98,7 @@ export class GameEngine {
     this.levelIndex = Math.max(0, Math.min(levelIndex, levelManifest.length - 1));
     this.levelDuration = levelManifest[this.levelIndex]?.timeLimitSeconds ?? 90;
     this.timeRemaining = this.levelDuration;
-    this.spawnCooldown = 0;
+    this.spawnCooldown = this.getBarrelSpawnInterval();
     this.levelFinished = false;
     this.timeOutTriggered = false;
     this.player = this.createPlayer();

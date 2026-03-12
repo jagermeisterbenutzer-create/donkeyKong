@@ -290,7 +290,7 @@ export function GameMenu() {
             <button type="button" style={PRIMARY_BUTTON_STYLE} onClick={handlePrimary}>
               {primaryLabel}
             </button>
-            {state.phase !== "running" && state.phase !== "boot" ? (
+            {state.phase !== "boot" ? (
               <button
                 type="button"
                 style={{
